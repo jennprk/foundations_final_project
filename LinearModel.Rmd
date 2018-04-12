@@ -47,7 +47,7 @@ n_max <- ASU %>%
   group_by(ID,visit) %>%
   summarise(treatment=treatment,maxday = max(wheeze,slowact,insomnia,missedschool,na.rm=T))
 
-fit_max <- lm(maxday~treatment,data=n_max)
+fit_max <- lm(maxday~treatment+visit,data=n_max)
 anova(fit_max)
 ```
 
@@ -62,7 +62,7 @@ ENO$ENO_q19 <- ifelse(ENO$ENO_q19==".",NA,as.numeric(as.character(ENO$ENO_q19)))
 names <- c("ID","treatment","visit","avg_FENO")
 colnames(ENO) <- names
 
-fit_eno <- lm(avg_FENO~treatment,data=ENO)
+fit_eno <- lm(avg_FENO~treatment+visit,data=ENO)
 anova(fit_eno)
 ```
 
