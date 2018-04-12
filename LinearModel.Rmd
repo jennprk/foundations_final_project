@@ -126,5 +126,19 @@ colnames(y) <- c("Estimate", "p.t.test", "p.anova")
 y <- y[2,]
 knitr::kable(y)
 
+# plot
+lf <- ST %>%
+  group_by(treatment, visit) %>%
+  summarise(mu1=mean(FEVperc_mean_v1, na.rm = T), mu2=mean(FEVFVC_mean_v1, na.rm = T))
+
+
+ggplot(data=lf,aes(x=visit,y=mu1,group=treatment,color=treatment)) +
+  geom_line(stat="identity",position="identity") +
+    labs(title="Lung Function",x="visits",y="Average FEV1 Percentage")
+
+ggplot(data=lf,aes(x=visit,y=mu2,group=treatment,color=treatment)) +
+  geom_line(stat="identity",position="identity") +
+    labs(title="Lung Function",x="visits",y="Average FEV1/FVC")
+
 ```
 
