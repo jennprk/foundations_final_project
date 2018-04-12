@@ -229,7 +229,35 @@ obese <- BMI %>%
 
 
 
+Table for Linear Model
+```{r}
+# linear model
+ST <- read.csv("/Users/xuchenghuiyun/Desktop/FBA/Final Project/datas/ST.csv")
 
+ST <- ST %>%
+  select(group, event, ST_q7c, ST_q7d)
+
+ST$ST_q7c <- ifelse(ST$ST_q7c==".",NA,as.numeric(as.character(ST$ST_q7c)))
+ST$ST_q7d <- ifelse(ST$ST_q7d==".",NA,as.numeric(as.character(ST$ST_q7d)))
+
+names(ST) <- c("treatment","visit","FEVperc_mean_v1","FEVFVC_mean_v1")
+ST <- ST[-which(ST$visit=="Unscheduled Visit"),]
+ST <- ST[-which(ST$visit=="AceMech Repeat Visit"),]
+
+#fit1 <- lm(FEVperc_mean_v1 ~ treatment, data = ST)
+fit_FEVperc <- lm(FEVperc_mean_v1 ~ treatment+visit, data = ST)
+
+#fit2 <- lm(FEVFVC_mean_v1 ~ treatment, data = ST)
+fit_FEVFVC <- lm(FEVFVC_mean_v1 ~ treatment+visit, data = ST)
+  
+#summary(fit1)
+summary(fit_FEVperc)
+
+#summary(fit2)
+summary(fit_FEVFVC)
+
+anova(fit_FEVperc)
+anova(fit_FEVFVC)
 
 
 # table of result
@@ -237,28 +265,98 @@ dfp <- function(p.val){
   format.pval(pv = p.val, eps = 0.001, nsmall = 3)
 }
 
-k <- data.frame(pvalue=NA)
-k[1:10,] <- NA
-k[2,1] <- dfp(anova(fit1.2)$'Pr(>F)'[1])
-k[10,1] <- dfp(anova(fit1.2)$'Pr(>F)'[2])
+library(car)
+# wheeze
+fit_wheeze <- lm(wheeze~treatment+visit,data=ASU)
+anova(fit_wheeze)
 
-p <- dfp(summary(fit1.2)$coef[, 4])
-x <- as.data.frame(cbind(round(summary(fit1.2)$coef[, 1],3), p))
-y <- cbind(x,k)
-colnames(y) <- c("Estimate", "p.t.test", "p.anova")
-y <- y[2,]
-knitr::kable(y)
+# slowact
+fit_slowact <- lm(slowact~treatment+visit,data=ASU)
+anova(fit_slowact)
 
-t <- data.frame(pvalue=NA)
-t[1:10,] <- NA
-t[2,1] <- dfp(anova(fit2.2)$'Pr(>F)'[1])
+# insomnia
+fit_insomnia <- lm(insomnia~treatment+visit,data=ASU)
+anova(fit_insomnia)
 
-p <- dfp(summary(fit2.2)$coef[, 4])
-x <- as.data.frame(cbind(round(summary(fit2.2)$coef[, 1],3), p))
-y <- cbind(x,t)
-colnames(y) <- c("Estimate", "p.t.test", "p.anova")
-y <- y[2,]
-knitr::kable(y)
+# missschool
+fit_missedschool <- lm(missedschool~treatment+visit,data=ASU)
+anova(fit_missedschool)
+
+# Maximum symptom
+n_max <- ASU %>%
+  group_by(ID,visit) %>%
+  summarise(treatment=treatment,maxday = max(wheeze,slowact,insomnia,missedschool,na.rm=T))
+
+fit_max <- lm(maxday~treatment+visit,data=n_max)
+anova(fit_max)
+
+
+# ENO
+ENO <- read.csv("/Users/xuchenghuiyun/Desktop/FBA/Final Project/datas/ENO.csv")
+
+ENO <- ENO %>%
+  select(Sub.Org.Accession, group, event, ENO_q19)
+
+ENO$ENO_q19 <- ifelse(ENO$ENO_q19==".",NA,as.numeric(as.character(ENO$ENO_q19)))
+
+names <- c("ID","treatment","visit","avg_FENO")
+colnames(ENO) <- names
+
+fit_eno <- lm(avg_FENO~treatment+visit,data=ENO)
+anova(fit_eno)
+
+
+act <- ACT %>%
+  select(ID,Treatment,Visit,ACT_q1,ACT_q2,ACT_q3,ACT_q4,ACT_q5) %>%
+  group_by(Treatment,ID,Visit) %>% summarise(sum=sum(ACT_q1,ACT_q2,ACT_q3,ACT_q4,ACT_q5,na.rm=T)) %>%
+  arrange(ID)
+fit_act <- lm(sum ~ Treatment + Visit,data=act)
+anova(fit_act)
+
+a <- dfp(anova(fit_max)$'Pr(>F)'[1])
+p <- dfp(summary(fit_max)$coef[2, 4])
+e <- round(summary(fit_max)$coef[2, 1],3)
+x1 <- as.data.frame(cbind(e, p, a))
+
+a <- dfp(anova(fit_wheeze)$'Pr(>F)'[1])
+p <- dfp(summary(fit_wheeze)$coef[2, 4])
+e <- round(summary(fit_wheeze)$coef[2, 1],3)
+x2 <- as.data.frame(rbind(x1,cbind(e, p, a)))
+
+a <- dfp(anova(fit_slowact)$'Pr(>F)'[1])
+p <- dfp(summary(fit_slowact)$coef[2, 4])
+e <- round(summary(fit_slowact)$coef[2, 1],3)
+x3 <- as.data.frame(rbind(x2,cbind(e, p, a)))
+
+a <- dfp(anova(fit_insomnia)$'Pr(>F)'[1])
+p <- dfp(summary(fit_insomnia)$coef[2, 4])
+e <- round(summary(fit_insomnia)$coef[2, 1],3)
+x4 <- as.data.frame(rbind(x3,cbind(e, p, a)))
+
+a <- dfp(anova(fit_missedschool)$'Pr(>F)'[1])
+p <- dfp(summary(fit_missedschool)$coef[2, 4])
+e <- round(summary(fit_missedschool)$coef[2, 1],3)
+x5 <- as.data.frame(rbind(x4,cbind(e, p, a)))
+
+a <- dfp(anova(fit_FEVperc)$'Pr(>F)'[1])
+p <- dfp(summary(fit_FEVperc)$coef[2, 4])
+e <- round(summary(fit_FEVperc)$coef[2, 1],3)
+x6 <- as.data.frame(rbind(x5,cbind(e, p, a)))
+
+a <- dfp(anova(fit_FEVFVC)$'Pr(>F)'[1])
+p <- dfp(summary(fit_FEVFVC)$coef[2, 4])
+e <- round(summary(fit_FEVFVC)$coef[2, 1],3)
+x7 <- as.data.frame(rbind(x6,cbind(e, p, a)))
+
+a <- dfp(anova(fit_act)$'Pr(>F)'[1])
+p <- dfp(summary(fit_act)$coef[2, 4])
+e <- round(summary(fit_act)$coef[2, 1],3)
+x8 <- as.data.frame(rbind(x7,cbind(e, p, a)))
+
+colnames(x8) <- c("Estimate", "p.t.test", "p.anova")
+rownames(x8) <- c("Max Symptom","Days of Wheeze","Days of activity interference","Nights of sleep disruption","School days missed","FEV%","FEV/FVC","ACTscore")
+knitr::kable(x8)
+
 
 # plot
 lf <- ST %>%
