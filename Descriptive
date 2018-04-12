@@ -1,0 +1,652 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+```
+
+# ** *Note* **  There have been some changes in the datasets used as they were not equivalent to the outcome or covariates we needed.
+
+## **Primary objective**
+### Reproduction of study on clinical trial SDY210 and sub-group analysis on male adolescents
+
+## **Preprocessing** 
+In general:
+- Widen the longitudinal datasets so every element from visit 1 through 8 is in each column.
+- Change all '.' to NA values
+- Used left_join() to merge all data for each visits as visit 1 always include all 546 participants while from visit 2 to 8 includes many missing data.
+- Missing data will be set as NA values automatically by left joining to visit 1 data.
+
+### Preprocessing the variables needed from dataset ACT
+
+- Variables selected: 
+
+Sub.Org.Accession (ID), group (treatment and control), age, gender, event (visit),
+
+Past 4 Weeks - Asthma Keeps Participant From Getting Much Done at Work or Home, 
+
+Past 4 Weeks - How Often Has Participant Had Shortness of Breath,
+
+Past 4 Weeks - How Often Did Asthma Symptoms Wake Participant,
+
+Past 4 Weeks - How Often Participant Used Rescue Med,
+
+Past 4 Weeks - How Participant Rates Asthma Control.
+
+- Change all factor levels in dataset to numeric to calculate scores
+
+```{r}
+ACT <- read.csv("/Users/xuchenghuiyun/Desktop/FBA/Final Project/datas/ACT.csv")
+ACT <- ACT[, c(1, 2, 5, 9:13)]
+colnames(ACT) <- c("ID","Treatment","Visit","ACT_q1","ACT_q2","ACT_q3","ACT_q4","ACT_q5")
+
+
+ACT$ACT_q1 <- ifelse(ACT$ACT_q1 == "All Of The Time",1,
+              ifelse(ACT$ACT_q1 == "Most Of The Time",2, 
+              ifelse(ACT$ACT_q1 == "Some Of The Time",3,
+              ifelse(ACT$ACT_q1 == "A little Of The Time",4,5))))
+
+ACT$ACT_q2 <- ifelse(ACT$ACT_q2 == "More Than Once a Day",1,
+              ifelse(ACT$ACT_q2 == "Once a Day",2, 
+              ifelse(ACT$ACT_q2 == "3 to 6 Times a Week",3,
+              ifelse(ACT$ACT_q2 == "Once or Twice a Week",4,5))))
+
+ACT$ACT_q3 <- ifelse(ACT$ACT_q3 == "4 or More Nights a Week",1,
+              ifelse(ACT$ACT_q3 == "2 to 3 Nights a Week",2, 
+              ifelse(ACT$ACT_q3 == "Once a Week",3,
+              ifelse(ACT$ACT_q3 == "Once or Twice",4,5))))
+
+ACT$ACT_q4 <- ifelse(ACT$ACT_q4 == "3 or More Times Per Day",1,
+              ifelse(ACT$ACT_q4 == "1 or 2 Times Per Day",2, 
+              ifelse(ACT$ACT_q4 == "2 to 3 Times a Week",3,
+              ifelse(ACT$ACT_q4 == "Once a Week or Less",4,5))))
+
+ACT$ACT_q5 <- ifelse(ACT$ACT_q5 == "Not Controlled at All",1,
+              ifelse(ACT$ACT_q5 == "Poorly Controlled",2, 
+              ifelse(ACT$ACT_q5 == "Somewhat Controlled",3,
+              ifelse(ACT$ACT_q5 == "Well Controlled",4,5))))
+
+ACT %>% summarise(as.numeric(summary(is.na(ACT$ACT_q1))[3]),as.numeric(summary(is.na(ACT_q2))[3]),as.numeric(summary(is.na(ACT_q3))[3]),as.numeric(summary(is.na(ACT_q4))[3]),as.numeric(summary(is.na(ACT_q5)))[3])
+
+visit1 <- ACT %>% 
+  filter(Visit == "Visit 1")
+visit2 <- ACT %>% 
+  filter(Visit == "Visit 2")
+visit3 <- ACT %>% 
+  filter(Visit == "Visit 3")
+visit4 <- ACT %>% 
+  filter(Visit == "Visit 4")
+visit5 <- ACT %>% 
+  filter(Visit == "Visit 5")
+visit6 <- ACT %>% 
+  filter(Visit == "Visit 6")
+visit7 <- ACT %>% 
+  filter(Visit == "Visit 7")
+visit8 <- ACT %>% 
+  filter(Visit == "Visit 8")
+
+names <- c("ID","treatment","visit1","ACT_qone_v1","ACT_qtwo_v1","ACT_qthree_v1","ACT_qfour_v1","ACT_qfive_v1")
+
+colnames(visit1) <- names
+colnames(visit2) <- gsub("1","2",names)
+colnames(visit3) <- gsub("1","3",names)
+colnames(visit4) <- gsub("1","4",names)
+colnames(visit5) <- gsub("1","5",names)
+colnames(visit6) <- gsub("1","6",names)
+colnames(visit7) <- gsub("1","7",names)
+colnames(visit8) <- gsub("1","8",names)
+
+ACT_visit <- left_join(visit1, visit2, by =c("ID","treatment"))
+
+for (i in 3:8){
+  ACT_visit <- left_join(ACT_visit, get(paste0("visit",i)), by =c("ID","treatment"))
+}
+
+```
+
+### Preprocessing the variables needed from dataset ASU
+
+```{r}
+ASU <- read.csv("/Users/xuchenghuiyun/Desktop/FBA/Final Project/datas/ASU.csv")
+
+ASU <- ASU %>%
+  select(Sub.Org.Accession, group,event, ASU_q1,ASU_q2,ASU_q3,ASU_q7a1,ASU_q13a,ASU_q14e1)
+
+ASU$ASU_q13a <- ifelse(ASU$ASU_q13a==".",NA,as.numeric(as.character(ASU$ASU_q13a)))
+ASU$ASU_q7a1 <- ifelse(ASU$ASU_q7a1==".",NA,as.numeric(as.character(ASU$ASU_q7a1)))
+ASU$ASU_q14e1 <- ifelse(ASU$ASU_q14e1==".",NA,as.numeric(as.character(ASU$ASU_q14e1)))
+
+for (i in 1:8) {
+  assign(paste0('ASU_visit',i),data.frame())
+  assign(paste0('ASU_visit',i),ASU[which(ASU$event==paste0('Visit ',i)),])
+}
+
+names <- c("ID","treatment","visit1","wheeze_v1","slowact_v1","insomnia_v1","missedschool_v1","prednisone_v1","hosp_v1")
+
+colnames(ASU_visit1) <- names
+colnames(ASU_visit2) <- gsub("1","2",names)
+colnames(ASU_visit3) <- gsub("1","3",names)
+colnames(ASU_visit4) <- gsub("1","4",names)
+colnames(ASU_visit5) <- gsub("1","5",names)
+colnames(ASU_visit6) <- gsub("1","6",names)
+colnames(ASU_visit7) <- gsub("1","7",names)
+colnames(ASU_visit8) <- gsub("1","8",names)
+
+ASU_visit <- left_join(ASU_visit1, ASU_visit2, by =c("ID","treatment"))
+
+for (i in 3:8){
+  ASU_visit <- left_join(ASU_visit, get(paste0("ASU_visit",i)), by =c("ID","treatment"))
+}
+
+# View(ASU_visit)
+
+#ASU_mean <- ASU %>%
+#  group_by(event) %>%
+#  summarise(wheeze_mean = mean(ASU_q1),slowact_mean= mean(ASU_q2),insomnia_mean= #mean(ASU_q3),missedschool_mean= mean(ASU_q7a1,na.rm=T), hosp_mean=mean(ASU_q14e1,na.rm=T))
+
+#ASU_mean
+```
+
+
+### Preprocessing the variables needed from dataset ENO
+
+```{r}
+ENO <- read.csv("/Users/xuchenghuiyun/Desktop/FBA/Final Project/datas/ENO.csv")
+
+ENO <- ENO %>%
+  select(Sub.Org.Accession, group, event, ENO_q19)
+
+sum(is.na(ENO$ENO_q19))
+sum(ENO$ENO_q19==".")
+
+ENO$ENO_q19 <- ifelse(ENO$ENO_q19==".",NA,as.numeric(as.character(ENO$ENO_q19)))
+
+
+for (i in 1:8) {
+  assign(paste0('ENO_visit',i),data.frame())
+  assign(paste0('ENO_visit',i),ENO[which(ENO$event==paste0('Visit ',i)),])
+}
+
+names <- c("ID","treatment","visit1","avg_FENO_v1")
+
+colnames(ENO_visit1) <- names
+colnames(ENO_visit2) <- gsub("1","2",names)
+colnames(ENO_visit3) <- gsub("1","3",names)
+colnames(ENO_visit4) <- gsub("1","4",names)
+colnames(ENO_visit5) <- gsub("1","5",names)
+colnames(ENO_visit6) <- gsub("1","6",names)
+colnames(ENO_visit7) <- gsub("1","7",names)
+colnames(ENO_visit8) <- gsub("1","8",names)
+
+ENO_visit <- left_join(ENO_visit1, ENO_visit2, by =c("ID","treatment"))
+
+for (i in 3:8){
+  ENO_visit <- left_join(ENO_visit, get(paste0("ENO_visit",i)), by =c("ID","treatment"))
+}
+
+# View(ENO_visit)
+
+#ENO_mean <- ENO %>%
+#  group_by(event) %>%
+#  summarise(Feno_mean = mean(ENO_q19,na.rm=T))
+
+#ENO_visit
+```
+
+### Preprocessing the variables needed from dataset TC
+
+```{r}
+TC <- read.csv("~/Desktop/FBA/Final Project/datas/TC.csv")
+var <- names(TC) %in% c("Sub.Org.Accession","group","age","gender","TC_q17a") 
+TC <- TC[var]
+
+colnames(TC) <- c("ID","Treatment","age","gender", "Exacerbation")
+
+```
+
+### Preprocessing the variables needed from dataset ST
+
+```{r}
+ST <- read.csv("/Users/xuchenghuiyun/Desktop/FBA/Final Project/datas/ST.csv")
+
+ST <- ST %>%
+  select(Sub.Org.Accession, group, event, ST_q7c, ST_q7d)
+
+sum(is.na(ST$ST_q7c))
+sum(is.na(ST$ST_q7d))
+sum(ST$ST_q7c==".")
+sum(ST$ST_q7d==".")
+
+ST$ST_q7c <- ifelse(ST$ST_q7c==".",NA,as.numeric(as.character(ST$ST_q7c)))
+ST$ST_q7d <- ifelse(ST$ST_q7d==".",NA,as.numeric(as.character(ST$ST_q7d)))
+
+
+for (i in 1:8) {
+  assign(paste0('ST_visit',i),data.frame())
+  assign(paste0('ST_visit',i),ST[which(ST$event==paste0('Visit ',i)),])
+}
+
+names <- c("ID","treatment","visit1","FEVperc_mean_v1","FEVFVC_mean_v1")
+
+colnames(ST_visit1) <- names
+colnames(ST_visit2) <- gsub("1","2",names)
+colnames(ST_visit3) <- gsub("1","3",names)
+colnames(ST_visit4) <- gsub("1","4",names)
+colnames(ST_visit5) <- gsub("1","5",names)
+colnames(ST_visit6) <- gsub("1","6",names)
+colnames(ST_visit7) <- gsub("1","7",names)
+colnames(ST_visit8) <- gsub("1","8",names)
+
+ST_visit <- left_join(ST_visit1, ST_visit2, by =c("ID","treatment"))
+
+for (i in 3:8){
+  ST_visit <- left_join(ST_visit, get(paste0("ST_visit",i)), by =c("ID","treatment"))
+}
+
+ST_visit
+
+#View(ST_visit)
+
+#ST_mean <- ST %>%
+#  group_by(event) %>%
+#  summarise(FEVperc_mean = mean(ST_q7c,na.rm=T), FEV1FVC_mean= mean(ST_q7d,na.rm=T))
+
+#ST_mean
+
+
+```
+
+### Preprocessing the variables needed from dataset UV
+
+```{r}
+UV <- read.csv("~/Desktop/FBA/Final Project/datas/UV.csv")
+var <- names(UV) %in% c("Sub.Org.Accession","group","age","gender","UV_q19a") 
+UV <- UV[var]
+colnames(UV) <- c("ID","treatment","age","gender","UV_q19a")
+
+```
+
+### Preprocessing the variables needed from dataset DF
+
+```{r}
+DF <- read.csv("~/Desktop/FBA/Final Project/datas/DF.csv")
+
+DF <- DF %>%
+  select(Sub.Org.Accession, group, event, age, gender,DF_q8b1,DF_q8b3,DF_q8b5,DF_q8b6,DF_q6b,DF_q4b,DF_q5)
+
+colnames(DF) <- c("ID","treatment","visit1","age","gender","puerto","mexican","otherhispanic","black","CaretakerEducation","HouseholdEmployment","HouseholdIncome")
+
+MAH <- read.csv("~/Desktop/FBA/Final Project/datas/MAH.csv")
+
+MAH <- MAH %>%
+  select(Sub.Org.Accession,group,event,MAH_q9a)
+
+colnames(MAH) <- c("ID","treatment","visit1","ageDiagnosed")
+```
+
+### join all the preprocessed notes into one dataframe
+
+```{r}
+data_prim <- left_join(ACT_visit,ASU_visit,by=c("ID","treatment","visit1","visit2","visit3","visit4","visit5","visit6","visit7","visit8"))
+data_prim <- left_join(data_prim,ENO_visit,by=c("ID","treatment","visit1","visit2","visit3","visit4","visit5","visit6","visit7","visit8"))
+data_prim <- left_join(data_prim,ST_visit,by=c("ID","treatment","visit1","visit2","visit3","visit4","visit5","visit6","visit7","visit8"))
+data_prim <- left_join(data_prim,DF,by=c("ID","treatment","visit1"))
+data_prim <- left_join(data_prim,MAH,by=c("ID","treatment","visit1"))
+data_prim
+
+#write.csv(data_prim, file = "~/Desktop/FBA/Final Project/datas/data_prim.csv")
+
+```
+
+
+## secondary objective
+## association between eNO and eosinophil activity, abnormality of respiratory, and cardiovascular physical exam results.
+
+### Preprocessing the variables needed from dataset BSC and SPE
+### join all the preprocessed notes into one dataframe including ENO dataset
+
+
+```{r}
+BSC <- read.csv("~/Desktop/FBA/Final Project/datas/BSC.csv")
+
+BSC <- BSC %>%
+  select(Sub.Org.Accession,group,event,BSC_q2d3) %>%
+  filter(event=="Visit 2")
+
+BSC$BSC_q2d3 <- ifelse(BSC$BSC_q2d3==".",NA,as.numeric(as.character(BSC$BSC_q2d3)))
+
+colnames(BSC) <- c("ID","treatment","visit2","total_eosinophil")
+BSC
+
+
+SPE <- read.csv("~/Desktop/FBA/Final Project/datas/SPE.csv")
+
+SPE <- SPE %>%
+  select(Sub.Org.Accession, group, event, SPE_q11e, SPE_q11f)
+
+colnames(SPE) <- c("ID","treatment","visit1","PE_resp","PE_cardio")
+SPE
+
+
+data_second <- left_join(ENO_visit,BSC,by=c("ID","treatment"))
+data_second <- left_join(data_second,SPE,by=c("ID","treatment"))
+data_second
+
+#write.csv(data_prim, file = "~/Desktop/FBA/Final Project/datas/data_second.csv")
+
+```
+
+
+
+
+## Summarization ##
+
+```{r}
+out <- data.frame(FENO=NA,Reference=NA)
+out[,1:27] <- NA
+data_prim$age <- as.numeric(ifelse(data_prim$age==">18",19.5,ifelse(data_prim$age=="<13",12,as.numeric(as.character(data_prim$age)))))
+
+n_age <- data_prim %>%
+  select(treatment,age) %>%
+  group_by(treatment) %>%
+  summarise(mean=round(mean(age,na.rm=T),2),sd=round(sd(age,na.rm=T),2))
+
+out[2,1] <- paste0(n_age$mean[2],"+/-",n_age$sd[2])
+out[2,2] <- paste0(n_age$mean[1],"+/-",n_age$sd[1])
+
+n_sex <- data_prim %>%
+  select(treatment,gender)%>%
+  group_by(treatment,gender) %>%
+  count(.)
+
+n_sex$perc <- round(100*ifelse(n_sex$treatment=="Control",n_sex$n/sum(n_sex$n[1:2]),n_sex$n/sum(n_sex$n[3:4])),2)
+
+out[3,2] <-  paste0(n_sex$perc[2]," (",n_sex$n[2],"/",sum(n_sex$n[1:2]),") ")
+out[3,1] <-  paste0(n_sex$perc[4]," (",n_sex$n[4],"/",sum(n_sex$n[3:4]),") ")
+
+
+data_prim$race <- ifelse(data_prim$puerto=="Yes","hispanic",ifelse(data_prim$mexican=="Yes","hispanic",ifelse(data_prim$otherhispanic=="Yes","hispanic",ifelse(data_prim$black=="Yes","black","other"))))
+
+n_race <- data_prim %>%
+  select(ID,treatment,race) %>%
+  group_by(treatment,race) %>%
+  count(race)
+
+n_race$perc <- round(100*ifelse(n_race$treatment=="Control",n_race$n/sum(n_race$n[1:3]),n_race$n/sum(n_race$n[4:6])),2)
+
+
+for (i in 1:3) {
+ out[i+4,2] <- paste0(n_race$perc[i]," (",n_race$n[i],"/",sum(n_race$n[1:3]),") ")
+}
+
+for (i in 4:6) {
+ out[i+1,1] <- paste0(n_race$perc[i]," (",n_race$n[i],"/",sum(n_race$n[4:6]),") ")
+}
+
+rownames(out) <- c("Demographics","Age at recruitment (yr)","Male (%)","Race/Ethnic group (%)","Black","Hispanic","Other")
+
+
+data_prim$CaretakerEducationYN <- ifelse(data_prim$CaretakerEducation=="1 or 2 Years of College/Technical/Voc Training","Yes",ifelse(data_prim$CaretakerEducation=="3 or 4 Years of College/Technical/Voc Training","Yes",ifelse(data_prim$CaretakerEducation=="5 + Years of College/Technical/Voc Training","Yes",ifelse(data_prim$CaretakerEducation=="GED or 12th Grade","Yes","No"))))
+
+n_Careedu <- data_prim %>%
+  select(treatment,CaretakerEducationYN) %>%
+  group_by(treatment,CaretakerEducationYN) %>%
+  count(.)
+
+n_Careedu$perc <- round(100*ifelse(n_Careedu$treatment=="Control",n_Careedu$n/sum(n_Careedu$n[1:2]),n_Careedu$n/sum(n_Careedu$n[3:4])),2)
+
+out[8,1] <- paste0(n_Careedu$perc[4]," (",n_Careedu$n[4],"/",sum(n_Careedu$n[3:4]),") ") 
+out[8,2] <- paste0(n_Careedu$perc[2]," (",n_Careedu$n[2],"/",sum(n_Careedu$n[1:2]),") ") 
+rownames(out)[8] <- "Caretaker completed high school (%)"
+
+
+
+data_prim$hhemployment <-ifelse(data_prim$HouseholdEmployment>=1,"Yes","No")
+n_employment <- data_prim %>%
+  select(treatment,hhemployment) %>%
+  group_by(treatment,hhemployment) %>%
+  count(.)
+
+n_employment$perc <- round(100*ifelse(n_employment$treatment=="Control",n_employment$n/sum(n_employment$n[1:2]),n_employment$n/sum(n_employment$n[3:4])),2)
+
+out[9,1] <- paste0(n_employment$perc[4]," (",n_employment$n[4],"/",sum(n_employment$n[3:4]),") ") 
+out[9,2] <- paste0(n_employment$perc[2]," (",n_employment$n[2],"/",sum(n_employment$n[1:2]),") ") 
+rownames(out)[9] <- "≥ 1 household member employed (%)"
+out
+
+
+data_prim$income <-ifelse(data_prim$HouseholdIncome=="Less Than 5,000","Yes",ifelse(data_prim$HouseholdIncome=="10,000 to 14,999","Yes","No"))
+
+n_income <- data_prim %>%
+  select(treatment,income) %>%
+  group_by(treatment,income) %>%
+  count(.)
+
+n_income$perc <- round(100*ifelse(n_income$treatment=="Control",n_income$n/sum(n_income$n[1:2]),n_income$n/sum(n_income$n[3:4])),2)
+
+out[10,1] <- paste0(n_income$perc[4]," (",n_income$n[4],"/",sum(n_income$n[3:4]),") ") 
+out[10,2] <- paste0(n_income$perc[2]," (",n_income$n[2],"/",sum(n_income$n[1:2]),") ") 
+rownames(out)[10] <- "Household income <$15,000 (%)"
+out
+
+
+data_prim$ageDiagnosed <- as.numeric(ifelse(data_prim$ageDiagnosed==".",NA,as.numeric(as.character(data_prim$ageDiagnosed))))
+
+data_prim$asthmaDuration<- data_prim$age-data_prim$ageDiagnosed
+
+n_asthmaDuration <- data_prim %>%
+  select(treatment,asthmaDuration) %>%
+  group_by(treatment) %>%
+  summarise(avg=round(mean(asthmaDuration,na.rm=T),2),std=round(sd(asthmaDuration,na.rm=T),2))
+
+out[12,1] <- paste0(n_asthmaDuration$avg[2],"+/-",n_asthmaDuration$std[2]) 
+out[12,2] <- paste0(n_asthmaDuration$avg[1],"+/-",n_asthmaDuration$std[1]) 
+rownames(out)[c(11,12)] <- c("Asthma characteristics","Duration of asthma (yr)")
+out[13:15,]<-NA
+rownames(out)[13:15] <- c("Asthma Control Test™","ACT™ score in the last month","Asthma-related symptoms (no. of days / last 2 wks) at randomization")
+
+n_symp <- data_prim %>%
+  select(treatment,wheeze_v2,slowact_v2,insomnia_v2,missedschool_v2) %>%
+  group_by(treatment) %>%
+  summarise(avg_wheeze=round(mean(wheeze_v2,na.rm=T),2),sd_wheeze=round(sd(wheeze_v2,na.rm=T),2),avg_slowact=round(mean(slowact_v2,na.rm=T),2),sd_slowact=round(sd(slowact_v2,na.rm=T),2),avg_insomnia=round(mean(insomnia_v2,na.rm=T),2),sd_insomnia=round(sd(insomnia_v2,na.rm=T),2),avg_schoolmiss=round(mean(missedschool_v2,na.rm=T),2),sd_schoolmiss=round(sd(missedschool_v2,na.rm=T),2))
+
+for (i in 16:19){
+out[i+1,1] <- paste0(n_symp[2,i-15+i-16],"+/-",n_symp[2,i-15+i-16+1]) 
+out[i+1,2] <- paste0(n_symp[1,i-15+i-16],"+/-",n_symp[1,i-15+i-16+1]) 
+}
+out[21:27,] <- NA
+rownames(out)[16:27] <- c("Maximum symptom days","Days of wheeze, chest tightness or cough","Days of interference with activities","Nights of sleep disruption","School days missed","Lung function and exhaled nitric oxide level at randomization","FEV1 (% of predicted value)","FEV1/FVC","FENO (ppb)","Asthma-related health care use in the year prior to enrollment (%)","≥ 1 Hospitalizations","≥ 1 Exacerbations")
+
+
+n_max <- data_prim %>%
+  select(ID,treatment,wheeze_v2,slowact_v2,insomnia_v2,missedschool_v2) %>%
+  group_by(ID) %>%
+  summarise(treatment=treatment,maxday = max(wheeze_v2,slowact_v2,insomnia_v2,missedschool_v2)) %>%
+  group_by(treatment) %>%
+  summarise(avg_max=round(mean(maxday,na.rm=T),2),sd_max=round(sd(maxday, na.rm=T),2))
+
+out[16,1] <- paste0(n_max$avg_max[2],"+/-",n_max$sd_max[2]) 
+out[16,2] <- paste0(n_max$avg_max[1],"+/-",n_max$sd_max[1]) 
+out <- out[,1:2]
+out
+```
+
+
+## Contribution
+Ji-Eun Park : Data collecting, Preprocessing, Summarising data, Writing report
+Chenghuiyun Xu : Data collecting, Preprocessing, Summarising data, Writing report
+Melinda Liu : Data collecting, Paper review
+
+
+```{r}
+act <- data_prim %>%
+  select(ID,treatment, visit2,ACT_qone_v2,ACT_qtwo_v2,ACT_qthree_v2,ACT_qfour_v2,ACT_qfive_v2) %>%
+  group_by(treatment,ID) %>%
+  summarise(sum=sum(ACT_qone_v2,ACT_qtwo_v2,ACT_qthree_v2,ACT_qfour_v2,ACT_qfive_v2,na.rm=T)) %>%
+  summarise(round(mean(sum,na.rm=T),2), round(sd(sum,na.rm = T)),2)
+
+colnames(act) <- c("treatment", "mean", "sd")
+
+out[14,1] <- paste0(act$mean[2],"+/-", act$sd[2]) 
+out[14,2] <- paste0(act$mean[1],"+/-", act$sd[1])
+
+fev1 <- ST_visit %>%
+  select(ID, treatment, visit2, FEVperc_mean_v2, FEVFVC_mean_v2) %>%
+  group_by(treatment,ID) %>%
+  summarise(sum=sum(FEVperc_mean_v2, na.rm = T), sum2=sum(FEVFVC_mean_v2, na.rm=T)) %>%
+  summarise(round(mean(sum,na.rm=T),2), round(sd(sum,na.rm = T),2), round(mean(sum2,na.rm=T),2), round(sd(sum2,na.rm = T),2))
+
+colnames(fev1) <- c("","mean1", "sd1", "mean2", "sd2")
+
+fev2 <- ENO_visit %>%
+  select(ID, treatment, visit2, avg_FENO_v2) %>%
+  group_by(treatment,ID) %>%
+  summarise(sum=sum(avg_FENO_v2, na.rm=T)) %>%
+  summarise(round(mean(sum,na.rm=T),2), round(sd(sum,na.rm = T)),2)
+
+colnames(fev2) <- c("","mean", "sd")
+
+out[22,1] <- paste0(fev1$mean1[2],"+/-", fev1$sd1[2])
+out[22,2] <- paste0(fev1$mean1[1],"+/-", fev1$sd1[1])
+
+out[23,1] <- paste0(fev1$mean2[2],"+/-", fev1$sd2[2])
+out[23,2] <- paste0(fev1$mean2[1],"+/-", fev1$sd2[1])
+
+out[24,1] <- paste0(fev2$mean[2],"+/-", fev2$sd[2])
+out[24,2] <- paste0(fev2$mean[1],"+/-", fev2$sd[1])
+
+RF <- read.csv("~/Desktop/FBA/Final Project/datas/RF.csv")
+var <- names(RF) %in% c("Sub_Org_Accession","group","RF_q2_1_2") 
+RF <- RF[var]
+colnames(RF) <- c("ID","treatment","Hospitalization")
+RF <- RF %>%
+  filter(Hospitalization == "Yes")
+
+rf <- RF %>%
+  group_by(treatment) %>%
+  count(.)
+
+rf$perc <- round(100*ifelse(rf$treatment=="Control",rf$n[1]/270,rf$n[2]/276),2)
+
+out[26,1] <- paste0(rf$perc[2]," (",rf$n[2],"/", 276,") ") 
+out[26,2] <- paste0(rf$perc[1]," (",rf$n[1],"/", 270,") ")
+
+exa <- TC %>%
+  group_by(Treatment) %>%
+  filter(`Exacerbation`=="Yes") %>%
+  count(.)
+
+exa$perc <- round(100*ifelse(exa$Treatment=="Control", exa$n[1]/270, exa$n[2]/276),2)
+
+out[27,1] <- paste0(exa$perc[2]," (", exa$n[2],"/", 276,") ") 
+out[27,2] <- paste0(exa$perc[1]," (", exa$n[1],"/", 270,") ")
+
+out[c(1, 4,11,13,15,21,25),c(1,2)] <- ''
+
+
+## t test
+# age
+age <- dat %>%
+  select(treatment,age) %>%
+  group_by(treatment)
+
+p.age <- t.test(age$age[which(age$treatment=="Intervention")], age$age[which(age$treatment=="Control")])
+
+# sex
+sex <- dat %>%
+  select(treatment,gender) %>%
+  group_by(treatment,gender)
+
+a <- table(sex$treatment, sex$gender)
+
+p.sex <- chisq.test(a)
+
+# race
+dat$race <- ifelse(dat$puerto=="Yes","hispanic",ifelse(dat$mexican=="Yes","hispanic",ifelse(dat$otherhispanic=="Yes","hispanic",ifelse(dat$black=="Yes","black","other"))))
+
+race <- dat %>%
+  select(ID,treatment,race) %>%
+  group_by(treatment,race)
+
+a <- table(race$treatment, race$race)
+
+p.race <- chisq.test(a)
+
+#race_black <- dat %>%
+#  select(ID,treatment,race) %>%
+#  group_by(treatment,race) %>%
+#  filter(race=="black")
+
+#race_hispanic <- dat %>%
+#  select(ID,treatment,race) %>%
+#  group_by(treatment,race) %>%
+#  filter(race=="hispanic")
+
+#race_other <- dat %>%
+#  select(ID,treatment,race) %>%
+#  group_by(treatment,race) %>%
+#  filter(race=="other")
+
+#t.test(race$race[which(race_black$treatment=="Intervention")], race$race[which(race_black$treatment=="Control")])
+
+#t.test(race$race[which(race_hispanic$treatment=="Intervention")], race$race[which(race_hispanic$treatment=="Control")]) 
+
+#t.test(race$race[which(race_other$treatment=="Intervention")], race$race[which(race_other$treatment=="Control")])
+
+# caretaker
+dat$CaretakerEducationYN <- ifelse(dat$CaretakerEducation=="1 or 2 Years of College/Technical/Voc Training","Yes",ifelse(dat$CaretakerEducation=="3 or 4 Years of College/Technical/Voc Training","Yes",ifelse(dat$CaretakerEducation=="5 + Years of College/Technical/Voc Training","Yes",ifelse(dat$CaretakerEducation=="GED or 12th Grade","Yes","No"))))
+
+Careedu <- dat %>%
+  select(treatment,CaretakerEducationYN) %>%
+  group_by(treatment,CaretakerEducationYN)
+
+a <- table(Careedu$treatment, Careedu$CaretakerEducationYN)
+
+p.car <- chisq.test(a)
+
+# household member employed
+dat$hhemployment <-ifelse(dat$HouseholdEmployment>=1,"Yes","No")
+
+employment <- dat %>%
+  select(treatment,hhemployment) %>%
+  group_by(treatment,hhemployment)
+
+a <- table(employment$treatment, employment$hhemployment)
+
+p.em <- chisq.test(a)
+
+# income
+dat$income <-ifelse(dat$HouseholdIncome=="Less Than 5,000","Yes",ifelse(dat$HouseholdIncome=="10,000 to 14,999","Yes","No"))
+
+income <- dat %>%
+  select(treatment,income) %>%
+  group_by(treatment,income)
+
+a <- table(income$treatment, income$income)
+
+p.income <- chisq.test(a)
+
+# duration of asthma
+dat$ageDiagnosed <- as.numeric(ifelse(dat$ageDiagnosed==".",NA,as.numeric(as.character(dat$ageDiagnosed))))
+dat$age <- as.numeric(ifelse(dat$age==">18",19.5,ifelse(dat$age=="<13",12,as.numeric(as.character(dat$age)))))
+
+dat$asthmaDuration <- dat$age-dat$ageDiagnosed
+
+asthmaDuration <- dat %>%
+  select(treatment,asthmaDuration) %>%
+  group_by(treatment)
+
+p.dur <- t.test(asthmaDuration$asthmaDuration[which(asthmaDuration$treatment=="Intervention")], asthmaDuration$asthmaDuration[which(asthmaDuration$treatment=="Control")])
+
+# ACT
+act <- dat %>%
+  select(ID,treatment, visit2,ACT_qone_v2,ACT_qtwo_v2,ACT_qthree_v2,ACT_qfour_v2,ACT_qfive_v2) %>%
+  group_by(treatment,ID) %>%
+  summarise(sum=sum(ACT_qone_v2,ACT_qtwo_v2,ACT_qthree_v2,ACT_qfour_v2,ACT_qfive_v2,na.rm=T))
+
+p.act <- t.test(act$sum[which(act$treatment=="Intervention")], act$sum[which(act$treatment=="Control")])
+
+x <- as.data.frame(c("", dfp(p.age$p.value), dfp(p.sex$p.value), dfp(p.race$p.value),"", "", "", dfp(p.car$p.value), dfp(p.em$p.value), dfp(p.income$p.value), "",dfp(p.dur$p.value),"", dfp(p.act$p.value),"", 0.398, 0.207,0.409,0.985, 0.001, "", 0.529, 0.769, 0.622, "", 0.340, "< 2.2e-16"))
+colnames(x) <- "P Value"
+
+out <- cbind(out, x)
+out
+```
