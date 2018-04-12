@@ -12,6 +12,20 @@ library(lme4)
 ```
 
 Code for linear model for Asthma symptoms
+---
+title: "FBA_final"
+author: "Ji-eun Park"
+date: "4/11/2018"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(lme4)
+
+```
+
+Code for linear model for Asthma symptoms
 
 ```{r}
 ASU <- read.csv("/Users/jieun/Desktop/FBA/final/data/csv/ASU.csv")
@@ -27,17 +41,38 @@ colnames(ASU) <- names
 
 
 library(car)
-fit_wheeze <- lm(wheeze~treatment+visit,data=ASU)
-anova(fit_wheeze)
 
-fit_slowact <- lm(slowact~treatment+visit,data=ASU)
-anova(fit_slowact)
 
-fit_insomnia <- lm(insomnia~treatment+visit,data=ASU)
-anova(fit_insomnia)
+library(ggplot2)
+n_symp <- ASU %>%
+  select(ID,treatment,visit,wheeze,slowact,insomnia,missedschool) %>%
+  group_by(visit,treatment) %>%
+  summarise(avg_wheeze=round(mean(wheeze,na.rm=T),2),sd_wheeze=round(sd(wheeze,na.rm=T),2),avg_slowact=round(mean(slowact,na.rm=T),2),sd_slowact=round(sd(slowact,na.rm=T),2),avg_insomnia=round(mean(insomnia,na.rm=T),2),sd_insomnia=round(sd(insomnia,na.rm=T),2),avg_schoolmiss=round(mean(missedschool,na.rm=T),2),sd_schoolmiss=round(sd(missedschool,na.rm=T),2))
 
-fit_missedschool <- lm(missedschool~treatment+visit,data=ASU)
-anova(fit_missedschool)
+ggplot(data=n_symp,aes(x=visit,y=avg_wheeze,group=treatment,color=treatment)) +
+  geom_line(stat="identity",position="identity") +
+  labs(title="Average Wheeze symptom days",x="visits",y="symptom days")
+
+
+
+ggplot(data=n_symp,aes(x=visit,y=avg_slowact,group=treatment,color=treatment)) +
+  geom_line(stat="identity",position="identity") +
+  labs(title="Average Days of activity interference",x="visits",y="Days of activity interference")
+
+
+
+
+ggplot(data=n_symp,aes(x=visit,y=avg_insomnia,group=treatment,color=treatment)) +
+  geom_line(stat="identity",position="identity") +
+    labs(title="Average Nights of sleep disruption",x="visits",y="Nights of sleep disruption")
+
+
+ggplot(data=n_symp,aes(x=visit,y=avg_schoolmiss,group=treatment,color=treatment)) +
+  geom_line(stat="identity",position="identity") +
+    labs(title="Average School days missed",x="visits",y="School days missed")
+
+
+
 ```
 
 Maximum symptom linear
@@ -45,10 +80,18 @@ Maximum symptom linear
 ```{r}
 n_max <- ASU %>%
   group_by(ID,visit) %>%
-  summarise(treatment=treatment,maxday = max(wheeze,slowact,insomnia,missedschool,na.rm=T))
+  summarise(treatment=treatment,maxday = max(wheeze,slowact,insomnia,missedschool,na.rm=T)) 
 
-fit_max <- lm(maxday~treatment+visit,data=n_max)
-anova(fit_max)
+nmax <- ASU %>%
+  group_by(ID,visit) %>%
+  summarise(treatment=treatment,maxday = max(wheeze,slowact,insomnia,missedschool,na.rm=T)) %>%
+  group_by(treatment,visit) %>%
+  summarise(avg_max=mean(maxday))
+
+
+ggplot(data=nmax,aes(x=visit,y=avg_max,group=treatment,color=treatment)) +
+  geom_line(stat="identity",position="identity") +
+    labs(title="Average Maximum Symptom days",x="visits",y="Maximum Symptom days")
 ```
 
 ```{r}
@@ -62,16 +105,57 @@ ENO$ENO_q19 <- ifelse(ENO$ENO_q19==".",NA,as.numeric(as.character(ENO$ENO_q19)))
 names <- c("ID","treatment","visit","avg_FENO")
 colnames(ENO) <- names
 
-fit_eno <- lm(avg_FENO~treatment+visit,data=ENO)
-anova(fit_eno)
+
+avg_feno <- ENO %>%
+  group_by(ID,visit) %>%
+  summarise(treatment=treatment,avgFENO = mean(avg_FENO,na.rm=T)) %>%
+  group_by(treatment,visit) %>%
+  summarise(avgENO=mean(avgFENO,na.rm=T))
+
+ggplot(data=avg_feno,aes(x=visit,y=avgENO,group=treatment,color=treatment)) +
+  geom_line(stat="identity",position="identity") +
+    labs(title="Exhaled Nitric Oxide",x="visits",y="Geometrix mean FeNO(ppb)")
 ```
 
+```{r}
+act <- ACT %>%
+  select(ID,Treatment,Visit,ACT_q1,ACT_q2,ACT_q3,ACT_q4,ACT_q5) %>%
+  group_by(Treatment,ID,Visit) %>% summarise(sum=sum(ACT_q1,ACT_q2,ACT_q3,ACT_q4,ACT_q5,na.rm=T)) %>%
+  arrange(ID)
 
-Lung Function
+ACT %>%
+  select(ID,Treatment,Visit,ACT_q1,ACT_q2,ACT_q3,ACT_q4,ACT_q5) %>%
+  group_by(Treatment,ID,Visit) %>% summarise(sum=sum(ACT_q1,ACT_q2,ACT_q3,ACT_q4,ACT_q5,na.rm=T)) %>%
+  arrange(ID) %>%
+  group_by(Treatment) %>%
+  summarise(mean(sum))
+
+```
+
+```{r}
+fit_wheeze <- lm(wheeze~treatment+visit,data=ASU)
+anova(fit_wheeze)
+
+fit_slowact <- lm(slowact~treatment+visit,data=ASU)
+anova(fit_slowact)
+
+fit_insomnia <- lm(insomnia~treatment+visit,data=ASU)
+anova(fit_insomnia)
+
+fit_missedschool <- lm(missedschool~treatment+visit,data=ASU)
+anova(fit_missedschool)
+
+fit_max <- lm(maxday~treatment+visit,data=n_max)
+anova(fit_max)
+
+fit_act <- lm(sum ~ Treatment + Visit,data=act)
+anova(fit_act)
+
+```
 
 ```{r}
 # linear model
-ST <- read.csv("/Users/xuchenghuiyun/Desktop/FBA/Final Project/datas/ST.csv")
+ST <- read.csv("/Users/jieun/Desktop/FBA/final/data/csv/ST.csv")
 
 ST <- ST %>%
   select(Sub.Org.Accession, group, event, ST_q7c, ST_q7d)
@@ -95,8 +179,58 @@ summary(fit1.2)
 summary(fit2)
 summary(fit2.2)
 
+anova(fit1)
 anova(fit1.2)
-anova(fit2.2)
+
+# table of result
+dfp <- function(p.val){
+  format.pval(pv = p.val, eps = 0.001, nsmall = 3)
+}
+
+
+```
+
+```{r}
+install.packages("blockrand")
+library(blockrand)
+s1 <- blockrand(54, stratum = "site1", block.sizes = 10)
+s1
+s2 <- blockrand(55, num.levels = 2, levels = LETTERS[seq(length = 2)],
+    id.prefix="site1", block.sizes = 10, block.prefix="site1", uneq.min=0, uneq.maxit=10)
+
+s3 <- blockrand(55, num.levels = 2, levels = LETTERS[seq(length = 2)],
+    id.prefix="site1", block.sizes = 10, block.prefix="site1", uneq.min=0, uneq.maxit=10)
+
+s4 <- blockrand(55, num.levels = 2, levels = LETTERS[seq(length = 2)],
+    id.prefix="site1", block.sizes = 10, block.prefix="site1", uneq.min=0, uneq.maxit=10)
+
+```
+
+
+```{r}
+SPE <- read.csv("/Users/jieun/Desktop/FBA/final/data/csv/SPE.csv")
+
+var <- names(SPE) %in% c("Sub.Org.Accession","event" ,"group","SPE_q8d","SPE_q9") 
+
+SPE <- SPE[var]
+SPE$SPE_q8d <- as.numeric(as.character(SPE$SPE_q8d))
+SPE$SPE_q9 <- as.numeric(as.character(SPE$SPE_q9))
+BMI <- SPE %>%
+  select(Sub.Org.Accession,SPE_q8d,SPE_q9) %>%
+  group_by(Sub.Org.Accession) %>%
+  summarise(BMI=(SPE_q9/(SPE_q8d/100)^2))
+
+obese <- BMI %>%
+  filter(BMI>=31) %>%
+  select(Sub.Org.Accession)
+
+```
+
+
+
+
+
+
 
 # table of result
 dfp <- function(p.val){
