@@ -67,4 +67,35 @@ anova(fit_eno)
 ```
 
 
+Lung Function
 
+```{r}
+# linear model
+ST <- read.csv("/Users/xuchenghuiyun/Desktop/FBA/Final Project/datas/ST.csv")
+
+ST <- ST %>%
+  select(Sub.Org.Accession, group, event, ST_q7c, ST_q7d)
+
+ST$ST_q7c <- ifelse(ST$ST_q7c==".",NA,as.numeric(as.character(ST$ST_q7c)))
+ST$ST_q7d <- ifelse(ST$ST_q7d==".",NA,as.numeric(as.character(ST$ST_q7d)))
+
+names(ST) <- c("ID","treatment","visit","FEVperc_mean_v1","FEVFVC_mean_v1")
+ST <- ST[-1688,]
+ST <- ST[-which(ST$visit=="AceMech Repeat Visit"),]
+
+fit1 <- lm(FEVperc_mean_v1 ~ treatment, data = ST)
+fit1.2 <- lm(FEVperc_mean_v1 ~ treatment+visit, data = ST)
+
+fit2 <- lm(FEVFVC_mean_v1 ~ treatment, data = ST)
+fit2.2 <- lm(FEVFVC_mean_v1 ~ treatment+visit, data = ST)
+  
+summary(fit1)
+summary(fit1.2)
+
+summary(fit2)
+summary(fit2.2)
+
+anova(fit1)
+anova(fit1.2)
+
+```
